@@ -49,7 +49,7 @@ function FormularioUsuario({ onSalvar, usuarioInicial }) {
           <Text style={styles.formSubtitulo}>
             {usuarioInicial
               ? 'Atualize seus dados de produtor rural'
-              : 'Preencha seus dados para personalizar o GroSat'}
+              : 'Preencha seus dados para personalizar o GeoSat'}
           </Text>
         </View>
 
