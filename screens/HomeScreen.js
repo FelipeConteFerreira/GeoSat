@@ -75,7 +75,7 @@ export default function HomeScreen({ navigation }) {
       <View style={styles.header}>
         <View>
           <Text style={styles.saudacao}>{getSaudacao()}, produtor!</Text>
-          <Text style={styles.titulo}>🌱 GroSat</Text>
+          <Text style={styles.titulo}>🌱 GeoSat</Text>
           <Text style={styles.subtitulo}>Monitoramento agrícola via satélite</Text>
         </View>
         <View style={styles.headerIcon}>
