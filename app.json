@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "GroSat",
-    "slug": "grosat",
+    "name": "GeoSat",
+    "slug": "geosat",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
