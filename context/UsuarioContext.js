@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const STORAGE_KEY = '@grosat_usuario';
+const STORAGE_KEY = '@geosat_usuario';
 
 const UsuarioContext = createContext(null);
 
