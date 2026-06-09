@@ -89,7 +89,7 @@ export function PlantacaoProvider({ children }) {
 
     const leitura = await geosatApi.criarLeitura({
       idSensor: sensor.idSensor,
-      dtLeitura: new Date().toISOString().slice(0, 19),
+      dtLeitura: new Date().toISOString().slice(0, 19) + 'Z',
       nrTempAr: temp,
       nrUmidadeSolo: umid,
       nrLuminosidade: 500,
