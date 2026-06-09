@@ -19,7 +19,7 @@ function getSaudacao() {
 }
 
 export default function HomeScreen({ navigation }) {
-  const { plantacoes } = usePlantacoes();
+  const { plantacoes, recarregarPlantacoes } = usePlantacoes();
   const [refreshing, setRefreshing] = useState(false);
 
   const totalAlertas = plantacoes.filter((p) => p.statusTemperatura.status !== 'normal').length;
@@ -30,10 +30,11 @@ export default function HomeScreen({ navigation }) {
 
   const ultimasPlantacoes = [...plantacoes].reverse().slice(0, 3);
 
-  const onRefresh = useCallback(() => {
+  const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  }, []);
+    await recarregarPlantacoes();
+    setRefreshing(false);
+  }, [recarregarPlantacoes]);
 
   const acoesRapidas = [
     {
