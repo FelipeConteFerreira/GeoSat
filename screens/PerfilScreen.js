@@ -13,52 +13,74 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useUsuario } from '../context/UsuarioContext';
+import { useAuth } from '../context/AuthContext';
+import { ApiError } from '../services/apiClient';
 
-function FormularioUsuario({ onSalvar, usuarioInicial }) {
+function FormularioUsuario({ onSalvar, usuarioInicial, salvando }) {
   const [nome, setNome] = useState(usuarioInicial?.nome ?? '');
+  const [email, setEmail] = useState(usuarioInicial?.email ?? '');
+  const [cpf, setCpf] = useState(usuarioInicial?.cpf ?? '');
+  const [telefone, setTelefone] = useState(usuarioInicial?.telefone ?? '');
   const [propriedade, setPropriedade] = useState(usuarioInicial?.propriedade ?? '');
+  const [municipio, setMunicipio] = useState(usuarioInicial?.municipio ?? 'São Paulo');
+  const [estado, setEstado] = useState(usuarioInicial?.estado ?? 'SP');
   const [cultivo, setCultivo] = useState(usuarioInicial?.cultivo ?? '');
 
   function handleSalvar() {
-    if (!nome.trim()) {
-      Alert.alert('Atenção', 'Informe seu nome.');
-      return;
+    if (!nome.trim()) return Alert.alert('Atenção', 'Informe seu nome.');
+    if (!email.trim()) return Alert.alert('Atenção', 'Informe seu e-mail.');
+    if (!cpf.replace(/\D/g, '').match(/^\d{11}$/)) {
+      return Alert.alert('Atenção', 'Informe um CPF válido com 11 dígitos.');
     }
-    if (!propriedade.trim()) {
-      Alert.alert('Atenção', 'Informe o nome da propriedade.');
-      return;
-    }
-    if (!cultivo.trim()) {
-      Alert.alert('Atenção', 'Informe o que você cultiva.');
-      return;
-    }
-    onSalvar({ nome, propriedade, cultivo });
+    if (!propriedade.trim()) return Alert.alert('Atenção', 'Informe o nome da propriedade.');
+    if (!municipio.trim()) return Alert.alert('Atenção', 'Informe o município.');
+    if (!estado.trim()) return Alert.alert('Atenção', 'Informe a UF (ex: SP).');
+    if (!cultivo.trim()) return Alert.alert('Atenção', 'Informe o que você cultiva.');
+
+    onSalvar({ nome, email, cpf, telefone, propriedade, municipio, estado, cultivo });
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.formContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.formHeader}>
           <Ionicons name="person-circle-outline" size={64} color="#2E7D32" />
-          <Text style={styles.formTitulo}>
-            {usuarioInicial ? 'Editar perfil' : 'Crie seu perfil'}
-          </Text>
+          <Text style={styles.formTitulo}>{usuarioInicial ? 'Editar perfil' : 'Crie seu perfil'}</Text>
           <Text style={styles.formSubtitulo}>
-            {usuarioInicial
-              ? 'Atualize seus dados de produtor rural'
-              : 'Preencha seus dados para personalizar o GeoSat'}
+            Seus dados serão sincronizados com a API GeoSat
           </Text>
         </View>
 
         <Text style={styles.label}>Nome</Text>
+        <TextInput style={styles.input} placeholder="Ex: Felipe Conte" value={nome} onChangeText={setNome} />
+
+        <Text style={styles.label}>E-mail</Text>
         <TextInput
           style={styles.input}
-          placeholder="Ex: Felipe Conte"
-          value={nome}
-          onChangeText={setNome}
+          placeholder="seu@email.com"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        <Text style={styles.label}>CPF (11 dígitos)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="00000000000"
+          value={cpf}
+          onChangeText={setCpf}
+          keyboardType="numeric"
+          maxLength={11}
+        />
+
+        <Text style={styles.label}>Telefone (opcional)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="11999999999"
+          value={telefone}
+          onChangeText={setTelefone}
+          keyboardType="phone-pad"
         />
 
         <Text style={styles.label}>Propriedade</Text>
@@ -69,6 +91,19 @@ function FormularioUsuario({ onSalvar, usuarioInicial }) {
           onChangeText={setPropriedade}
         />
 
+        <Text style={styles.label}>Município</Text>
+        <TextInput style={styles.input} placeholder="Ex: Ribeirão Preto" value={municipio} onChangeText={setMunicipio} />
+
+        <Text style={styles.label}>Estado (UF)</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="SP"
+          value={estado}
+          onChangeText={setEstado}
+          maxLength={2}
+          autoCapitalize="characters"
+        />
+
         <Text style={styles.label}>O que você cultiva</Text>
         <TextInput
           style={styles.input}
@@ -77,17 +112,25 @@ function FormularioUsuario({ onSalvar, usuarioInicial }) {
           onChangeText={setCultivo}
         />
 
-        <TouchableOpacity style={styles.botaoSalvar} onPress={handleSalvar}>
-          <Text style={styles.botaoSalvarTexto}>
-            {usuarioInicial ? 'Salvar alterações' : 'Criar perfil'}
-          </Text>
+        <TouchableOpacity
+          style={[styles.botaoSalvar, salvando && styles.botaoDisabled]}
+          onPress={handleSalvar}
+          disabled={salvando}
+        >
+          {salvando ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.botaoSalvarTexto}>
+              {usuarioInicial ? 'Salvar na API' : 'Criar perfil na API'}
+            </Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-function PerfilExibicao({ usuario, onEditar }) {
+function PerfilExibicao({ usuario, onEditar, onLogout }) {
   return (
     <ScrollView contentContainerStyle={styles.perfilContainer}>
       <View style={styles.avatarContainer}>
@@ -95,7 +138,7 @@ function PerfilExibicao({ usuario, onEditar }) {
           <Text style={styles.avatarTexto}>{usuario.nome.charAt(0).toUpperCase()}</Text>
         </View>
         <Text style={styles.perfilNome}>{usuario.nome}</Text>
-        <Text style={styles.perfilSubtitulo}>Produtor rural</Text>
+        <Text style={styles.perfilSubtitulo}>{usuario.email}</Text>
       </View>
 
       <View style={styles.infoCard}>
@@ -106,9 +149,15 @@ function PerfilExibicao({ usuario, onEditar }) {
             <Text style={styles.infoValor}>{usuario.propriedade}</Text>
           </View>
         </View>
-
         <View style={styles.divisor} />
-
+        <View style={styles.infoRow}>
+          <Ionicons name="location-outline" size={22} color="#2E7D32" />
+          <View style={styles.infoTexto}>
+            <Text style={styles.infoLabel}>Localização</Text>
+            <Text style={styles.infoValor}>{usuario.municipio} - {usuario.estado}</Text>
+          </View>
+        </View>
+        <View style={styles.divisor} />
         <View style={styles.infoRow}>
           <Ionicons name="leaf-outline" size={22} color="#2E7D32" />
           <View style={styles.infoTexto}>
@@ -122,18 +171,47 @@ function PerfilExibicao({ usuario, onEditar }) {
         <Ionicons name="create-outline" size={20} color="#2E7D32" />
         <Text style={styles.botaoEditarTexto}>Editar perfil</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity style={styles.botaoLogout} onPress={onLogout}>
+        <Ionicons name="log-out-outline" size={20} color="#B71C1C" />
+        <Text style={styles.botaoLogoutTexto}>Sair da conta</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 export default function PerfilScreen() {
-  const { usuario, carregando, salvarUsuario } = useUsuario();
+  const { usuario, carregando, salvarUsuario, limparUsuario } = useUsuario();
+  const { logout } = useAuth();
   const [editando, setEditando] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   async function handleSalvar(dados) {
-    await salvarUsuario(dados);
-    setEditando(false);
-    Alert.alert('Sucesso', 'Perfil salvo com sucesso!');
+    setSalvando(true);
+    try {
+      await salvarUsuario(dados);
+      setEditando(false);
+      Alert.alert('Sucesso', 'Perfil sincronizado com a API!');
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : 'Erro ao salvar perfil na API.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setSalvando(false);
+    }
+  }
+
+  async function handleLogout() {
+    Alert.alert('Sair', 'Deseja encerrar a sessão?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Sair',
+        style: 'destructive',
+        onPress: async () => {
+          await limparUsuario();
+          await logout();
+        },
+      },
+    ]);
   }
 
   if (carregando) {
@@ -149,11 +227,18 @@ export default function PerfilScreen() {
       <FormularioUsuario
         usuarioInicial={editando ? usuario : null}
         onSalvar={handleSalvar}
+        salvando={salvando}
       />
     );
   }
 
-  return <PerfilExibicao usuario={usuario} onEditar={() => setEditando(true)} />;
+  return (
+    <PerfilExibicao
+      usuario={usuario}
+      onEditar={() => setEditando(true)}
+      onLogout={handleLogout}
+    />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -179,6 +264,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 28,
   },
+  botaoDisabled: { opacity: 0.7 },
   botaoSalvarTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   perfilContainer: { padding: 20, paddingBottom: 40 },
   avatarContainer: { alignItems: 'center', marginTop: 20, marginBottom: 28 },
@@ -199,10 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 20,
     elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
   },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   infoTexto: { flex: 1 },
@@ -222,4 +304,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   botaoEditarTexto: { color: '#2E7D32', fontSize: 15, fontWeight: '600' },
+  botaoLogout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#B71C1C',
+    backgroundColor: '#fff',
+  },
+  botaoLogoutTexto: { color: '#B71C1C', fontSize: 15, fontWeight: '600' },
 });
