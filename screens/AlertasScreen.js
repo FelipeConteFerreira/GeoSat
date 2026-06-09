@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { usePlantacoes } from '../context/PlantacaoContext';
@@ -73,8 +74,12 @@ export default function AlertasScreen() {
   };
 
   async function resolverAlerta(idAlerta) {
-    await geosatApi.resolverAlerta(idAlerta);
-    await carregarAlertasApi();
+    try {
+      await geosatApi.resolverAlerta(idAlerta);
+      await carregarAlertasApi();
+    } catch (error) {
+      Alert.alert('Erro', error.message || 'Não foi possível resolver o alerta.');
+    }
   }
 
   const alertas = [...alertasApi, ...alertasLocais];
