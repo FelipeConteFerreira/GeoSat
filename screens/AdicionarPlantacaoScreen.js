@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { usePlantacoes } from '../context/PlantacaoContext';
 import { evaluateTemperatura } from '../utils/evaluateTemperatura';
+import { ApiError } from '../services/apiClient';
 
 export default function AdicionarPlantacaoScreen({ navigation }) {
   const { adicionarPlantacao } = usePlantacoes();
@@ -20,49 +22,40 @@ export default function AdicionarPlantacaoScreen({ navigation }) {
   const [umidade, setUmidade] = useState('');
   const [temperatura, setTemperatura] = useState('');
   const [saude, setSaude] = useState('');
+  const [salvando, setSalvando] = useState(false);
 
   const avaliacao = temperatura ? evaluateTemperatura(temperatura) : null;
 
-  function handleSalvar() {
-    if (!nome.trim()) {
-      Alert.alert('Atenção', 'Informe o nome da plantação.');
-      return;
-    }
-    if (!umidade.trim()) {
-      Alert.alert('Atenção', 'Informe a umidade do solo.');
-      return;
-    }
+  async function handleSalvar() {
+    if (!nome.trim()) return Alert.alert('Atenção', 'Informe o nome da plantação.');
+    if (!umidade.trim()) return Alert.alert('Atenção', 'Informe a umidade do solo.');
     if (!temperatura.trim() || isNaN(parseFloat(temperatura.replace(',', '.')))) {
-      Alert.alert('Atenção', 'Informe uma temperatura válida.');
-      return;
+      return Alert.alert('Atenção', 'Informe uma temperatura válida.');
     }
-    if (!saude.trim()) {
-      Alert.alert('Atenção', 'Informe a saúde da plantação.');
-      return;
-    }
+    if (!saude.trim()) return Alert.alert('Atenção', 'Informe a saúde da plantação.');
 
-    adicionarPlantacao({ nome, umidade, temperatura, saude });
-    Alert.alert('Sucesso', 'Plantação adicionada com sucesso!', [
-      { text: 'OK', onPress: () => navigation.goBack() },
-    ]);
+    setSalvando(true);
+    try {
+      await adicionarPlantacao({ nome, umidade, temperatura, saude });
+      Alert.alert('Sucesso', 'Plantação salva na API GeoSat!', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : 'Erro ao salvar na API.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>🌾 Nova Plantação</Text>
-        <Text style={styles.subtitle}>Preencha os dados de monitoramento</Text>
+        <Text style={styles.subtitle}>Dados enviados para talhão, sensor e leitura na API</Text>
 
-        <Text style={styles.label}>Nome da plantação</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Ex: Talhão Norte"
-          value={nome}
-          onChangeText={setNome}
-        />
+        <Text style={styles.label}>Nome da plantação (talhão)</Text>
+        <TextInput style={styles.input} placeholder="Ex: Talhão Norte" value={nome} onChangeText={setNome} />
 
         <Text style={styles.label}>Umidade do solo (%)</Text>
         <TextInput
@@ -82,10 +75,10 @@ export default function AdicionarPlantacaoScreen({ navigation }) {
           keyboardType="numeric"
         />
 
-        <Text style={styles.label}>Saúde da plantação</Text>
+        <Text style={styles.label}>Saúde / cultura da plantação</Text>
         <TextInput
           style={[styles.input, styles.textArea]}
-          placeholder="Ex: Boa, Regular, Ruim..."
+          placeholder="Ex: Boa, Soja..."
           value={saude}
           onChangeText={setSaude}
           multiline
@@ -93,18 +86,21 @@ export default function AdicionarPlantacaoScreen({ navigation }) {
 
         {avaliacao && avaliacao.status !== 'invalido' && (
           <View style={[styles.statusBox, { borderColor: avaliacao.color }]}>
-            <Text style={[styles.statusTitle, { color: avaliacao.color }]}>
-              Status da temperatura
-            </Text>
+            <Text style={[styles.statusTitle, { color: avaliacao.color }]}>Status da temperatura</Text>
             <Text style={styles.statusText}>{avaliacao.message}</Text>
-            <Text style={styles.statusHint}>
-              Normal: 20°C a 30°C | Acima de 30°C: risco de seca | Abaixo de 10°C: risco crítico
-            </Text>
           </View>
         )}
 
-        <TouchableOpacity style={styles.button} onPress={handleSalvar}>
-          <Text style={styles.buttonText}>Salvar Plantação</Text>
+        <TouchableOpacity
+          style={[styles.button, salvando && styles.buttonDisabled]}
+          onPress={handleSalvar}
+          disabled={salvando}
+        >
+          {salvando ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Salvar na API</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -134,8 +130,7 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   statusTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
-  statusText: { fontSize: 14, color: '#333', marginBottom: 8 },
-  statusHint: { fontSize: 12, color: '#666', lineHeight: 18 },
+  statusText: { fontSize: 14, color: '#333' },
   button: {
     backgroundColor: '#2E7D32',
     borderRadius: 8,
@@ -143,5 +138,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 24,
   },
+  buttonDisabled: { opacity: 0.7 },
   buttonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
 });
