@@ -8,17 +8,19 @@ O GeoSat permite que produtores rurais monitorem suas plantações (talhões): c
 
 ## 👥 Integrantes
 
-<!-- TODO: preencher com os dados reais do grupo antes da entrega -->
 
 | Nome | RM | Turma |
 |------|----|-------|
-| Felipe Conte Ferreira | RM______ | 2TDS |
+| Felipe Conte Ferreira | RM 562248 | 2TDS |
+| Altamir Lima | RM 562906 | 2TDS |
+| Olavo Porto Neves | RM 563558 | 2TDS |
+| Luiz Gustavo | RM 564495 | 2TDS |
+| Pedro Henrique Dias França | RM 561940 | 2TDS |
 
 ---
 
 ## 🎬 Vídeo de demonstração
 
-<!-- TODO: substituir pelo link real do YouTube antes da entrega -->
 
 ▶️ **YouTube:** [link do vídeo aqui](https://youtube.com/)
 
@@ -53,8 +55,8 @@ A API exige login. Use a conta de teste abaixo:
 <!-- TODO: confirmar/criar a conta de teste na API antes da entrega -->
 
 ```
-E-mail: usuario.teste@geosat.com
-Senha:  geosat123
+E-mail: felipe@teste.com
+Senha:  123456
 ```
 
 O campo **Nome** da tela de login é usado apenas para montar o perfil local — pode digitar qualquer nome.
