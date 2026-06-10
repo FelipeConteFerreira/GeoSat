@@ -22,7 +22,7 @@ O GeoSat permite que produtores rurais monitorem suas plantações (talhões): c
 ## 🎬 Vídeo de demonstração
 
 
-▶️ **YouTube:** [link do vídeo aqui](https://youtube.com/shorts/zOjwqBz2qog)
+▶️ **YouTube:** [link do vídeo no Youtube](https://youtube.com/shorts/zOjwqBz2qog)
 
 ---
 
