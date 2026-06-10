@@ -1,20 +1,21 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { FONTS } from '../config/theme';
 
 import HomeScreen from '../screens/HomeScreen';
+import DicasScreen from '../screens/DicasScreen';
 import PlantacoesScreen from '../screens/PlantacoesScreen';
 import MonitoramentoScreen from '../screens/MonitoramentoScreen';
-import AlertasScreen from '../screens/AlertasScreen';
 import PerfilScreen from '../screens/PerfilScreen';
 
 const Tab = createBottomTabNavigator();
 
 const TAB_ICONS = {
   Inicio: { active: 'home', inactive: 'home-outline' },
+  Dicas: { active: 'bulb', inactive: 'bulb-outline' },
   Plantacoes: { active: 'leaf', inactive: 'leaf-outline' },
   Monitoramento: { active: 'globe', inactive: 'globe-outline' },
-  Alertas: { active: 'warning', inactive: 'warning-outline' },
   Perfil: { active: 'person', inactive: 'person-outline' },
 };
 
@@ -24,7 +25,7 @@ export default function TabNavigator() {
       screenOptions={({ route }) => ({
         headerStyle: { backgroundColor: '#2E7D32' },
         headerTintColor: '#fff',
-        headerTitleStyle: { fontWeight: 'bold' },
+        headerTitleStyle: { fontFamily: FONTS.bold },
         tabBarActiveTintColor: '#2E7D32',
         tabBarInactiveTintColor: '#888',
         tabBarStyle: {
@@ -33,7 +34,7 @@ export default function TabNavigator() {
           paddingBottom: 4,
           height: 60,
         },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontFamily: FONTS.semiBold },
         tabBarIcon: ({ focused, color, size }) => {
           const icons = TAB_ICONS[route.name];
           const iconName = focused ? icons.active : icons.inactive;
@@ -42,9 +43,9 @@ export default function TabNavigator() {
       })}
     >
       <Tab.Screen name="Inicio" component={HomeScreen} options={{ title: 'Início', headerShown: false }} />
+      <Tab.Screen name="Dicas" component={DicasScreen} options={{ title: 'Dicas', headerShown: false }} />
       <Tab.Screen name="Plantacoes" component={PlantacoesScreen} options={{ title: 'Plantações' }} />
       <Tab.Screen name="Monitoramento" component={MonitoramentoScreen} options={{ title: 'Monitoramento' }} />
-      <Tab.Screen name="Alertas" component={AlertasScreen} options={{ title: 'Alertas' }} />
       <Tab.Screen name="Perfil" component={PerfilScreen} options={{ title: 'Perfil' }} />
     </Tab.Navigator>
   );

@@ -6,10 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   RefreshControl,
-  Pressable,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { usePlantacoes } from '../context/PlantacaoContext';
+import { FONTS } from '../config/theme';
 
 function getSaudacao() {
   const hora = new Date().getHours();
@@ -22,12 +22,12 @@ export default function HomeScreen({ navigation }) {
   const { plantacoes, recarregarPlantacoes } = usePlantacoes();
   const [refreshing, setRefreshing] = useState(false);
 
-  const totalAlertas = plantacoes.filter((p) => p.statusTemperatura.status !== 'normal').length;
   const tempMedia =
     plantacoes.length > 0
       ? (plantacoes.reduce((s, p) => s + p.temperatura, 0) / plantacoes.length).toFixed(1)
       : '--';
 
+  const saudaveis = plantacoes.filter((p) => p.statusTemperatura.status === 'normal').length;
   const ultimasPlantacoes = [...plantacoes].reverse().slice(0, 3);
 
   const onRefresh = useCallback(async () => {
@@ -58,13 +58,6 @@ export default function HomeScreen({ navigation }) {
       cor: '#1B5E20',
       onPress: () => navigation.navigate('Monitoramento'),
     },
-    {
-      id: 'alertas',
-      titulo: 'Ver Alertas',
-      icone: 'warning',
-      cor: totalAlertas > 0 ? '#E65100' : '#558B2F',
-      onPress: () => navigation.navigate('Alertas'),
-    },
   ];
 
   return (
@@ -84,21 +77,8 @@ export default function HomeScreen({ navigation }) {
         </View>
       </View>
 
-      {totalAlertas > 0 && (
-        <Pressable
-          style={styles.alertaBanner}
-          onPress={() => navigation.navigate('Alertas')}
-        >
-          <Ionicons name="warning" size={22} color="#E65100" />
-          <Text style={styles.alertaTexto}>
-            {totalAlertas} alerta{totalAlertas > 1 ? 's' : ''} ativo{totalAlertas > 1 ? 's' : ''} — toque para ver
-          </Text>
-          <Ionicons name="chevron-forward" size={20} color="#E65100" />
-        </Pressable>
-      )}
-
       <View style={styles.statsRow}>
-        <View style={[styles.statCard, styles.statCardFirst]}>
+        <View style={styles.statCard}>
           <Ionicons name="leaf" size={24} color="#2E7D32" />
           <Text style={styles.statNumero}>{plantacoes.length}</Text>
           <Text style={styles.statLabel}>Plantações</Text>
@@ -108,10 +88,10 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.statNumero}>{tempMedia}°</Text>
           <Text style={styles.statLabel}>Temp. média</Text>
         </View>
-        <View style={[styles.statCard, styles.statCardLast]}>
-          <Ionicons name="warning" size={24} color={totalAlertas > 0 ? '#E65100' : '#2E7D32'} />
-          <Text style={[styles.statNumero, totalAlertas > 0 && styles.statAlerta]}>{totalAlertas}</Text>
-          <Text style={styles.statLabel}>Alertas</Text>
+        <View style={styles.statCard}>
+          <Ionicons name="checkmark-circle" size={24} color="#2E7D32" />
+          <Text style={styles.statNumero}>{saudaveis}</Text>
+          <Text style={styles.statLabel}>Saudáveis</Text>
         </View>
       </View>
 
@@ -123,6 +103,8 @@ export default function HomeScreen({ navigation }) {
             style={styles.acaoCard}
             activeOpacity={0.7}
             onPress={acao.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={acao.titulo}
           >
             <View style={[styles.acaoIcone, { backgroundColor: acao.cor }]}>
               <Ionicons name={acao.icone} size={26} color="#fff" />
@@ -140,6 +122,8 @@ export default function HomeScreen({ navigation }) {
           <TouchableOpacity
             style={styles.emptyBotao}
             onPress={() => navigation.navigate('AdicionarPlantacao')}
+            accessibilityRole="button"
+            accessibilityLabel="Cadastrar primeira plantação"
           >
             <Text style={styles.emptyBotaoTexto}>+ Cadastrar primeira plantação</Text>
           </TouchableOpacity>
@@ -151,6 +135,8 @@ export default function HomeScreen({ navigation }) {
             style={styles.plantacaoCard}
             activeOpacity={0.7}
             onPress={() => navigation.navigate('Detalhes', { plantacao: item })}
+            accessibilityRole="button"
+            accessibilityLabel={`Ver detalhes da plantação ${item.nome}`}
           >
             <View style={styles.plantacaoInfo}>
               <Text style={styles.plantacaoNome}>{item.nome}</Text>
@@ -158,7 +144,12 @@ export default function HomeScreen({ navigation }) {
                 🌡️ {item.temperatura}°C · 💧 {item.umidade}% · 🌱 {item.saude}
               </Text>
             </View>
-            <View style={[styles.statusBadge, { backgroundColor: item.statusTemperatura.color + '22' }]}>
+            <View
+              style={[
+                styles.statusBadge,
+                { backgroundColor: item.statusTemperatura.color + '22' },
+              ]}
+            >
               <Text style={[styles.statusTexto, { color: item.statusTemperatura.color }]}>
                 {item.statusTemperatura.status === 'normal' ? 'OK' : '!'}
               </Text>
@@ -192,23 +183,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  saudacao: { color: 'rgba(255,255,255,0.85)', fontSize: 14, marginBottom: 4 },
-  titulo: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
-  subtitulo: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
+  saudacao: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontFamily: FONTS.regular, marginBottom: 4 },
+  titulo: { fontSize: 28, fontFamily: FONTS.bold, color: '#fff' },
+  subtitulo: { fontSize: 13, fontFamily: FONTS.regular, color: 'rgba(255,255,255,0.8)', marginTop: 4 },
   headerIcon: { marginLeft: 12 },
-  alertaBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFF3E0',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 14,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#E65100',
-    gap: 8,
-  },
-  alertaTexto: { flex: 1, color: '#E65100', fontWeight: '600', fontSize: 14 },
   statsRow: {
     flexDirection: 'row',
     marginHorizontal: 16,
@@ -227,14 +205,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
   },
-  statCardFirst: {},
-  statCardLast: {},
-  statNumero: { fontSize: 22, fontWeight: 'bold', color: '#1B5E20', marginTop: 6 },
-  statAlerta: { color: '#E65100' },
+  statNumero: { fontSize: 22, fontFamily: FONTS.bold, color: '#1B5E20', marginTop: 6 },
   statLabel: { fontSize: 11, color: '#666', marginTop: 2, textAlign: 'center' },
   secaoTitulo: {
     fontSize: 17,
-    fontWeight: 'bold',
+    fontFamily: FONTS.bold,
     color: '#1B5E20',
     marginHorizontal: 16,
     marginTop: 24,
@@ -247,10 +222,10 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   acaoCard: {
-    width: '47%',
+    width: '31%',
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
+    padding: 14,
     alignItems: 'center',
     elevation: 2,
     shadowColor: '#000',
@@ -266,7 +241,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 10,
   },
-  acaoTitulo: { fontSize: 13, fontWeight: '600', color: '#333', textAlign: 'center' },
+  acaoTitulo: { fontSize: 12, fontFamily: FONTS.semiBold, color: '#333', textAlign: 'center' },
   emptyCard: {
     backgroundColor: '#fff',
     marginHorizontal: 16,
@@ -284,7 +259,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
   },
-  emptyBotaoTexto: { color: '#fff', fontWeight: '600', fontSize: 14 },
+  emptyBotaoTexto: { color: '#fff', fontFamily: FONTS.semiBold, fontSize: 14 },
   plantacaoCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -300,7 +275,7 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
   },
   plantacaoInfo: { flex: 1 },
-  plantacaoNome: { fontSize: 16, fontWeight: 'bold', color: '#2E7D32' },
+  plantacaoNome: { fontSize: 16, fontFamily: FONTS.bold, color: '#2E7D32' },
   plantacaoDetalhe: { fontSize: 12, color: '#666', marginTop: 4 },
   statusBadge: {
     width: 32,

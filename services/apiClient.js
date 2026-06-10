@@ -1,5 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_BASE_URL, STORAGE_KEYS } from '../config/api';
+import {
+  definirTokens,
+  limparTokensMemoria,
+  normalizarTokens,
+  obterTokens,
+} from './tokenStore';
 
 export class ApiError extends Error {
   constructor(status, message, details) {
@@ -12,45 +18,92 @@ export class ApiError extends Error {
 async function parseError(response) {
   try {
     const body = await response.json();
-    return body.message || body.detail || body.title || `Erro ${response.status}`;
+
+    if (Array.isArray(body.fieldErrors)) {
+      const campos = body.fieldErrors
+        .map((e) => `${e.field ?? e.campo}: ${e.message ?? e.defaultMessage}`)
+        .join('\n');
+      if (campos) return campos;
+    }
+
+    if (body.fieldErrors && typeof body.fieldErrors === 'object') {
+      const campos = Object.entries(body.fieldErrors)
+        .map(([campo, msg]) => `${campo}: ${msg}`)
+        .join('\n');
+      if (campos) return campos;
+    }
+
+    return body.message || body.error || body.detail || body.title || `Erro ${response.status}`;
   } catch {
     return `Erro ${response.status}`;
   }
 }
 
-export async function getStoredTokens() {
+async function obterTokensAtivos() {
+  const memoria = obterTokens();
+  if (memoria?.accessToken) return memoria;
+
   const raw = await AsyncStorage.getItem(STORAGE_KEYS.tokens);
-  return raw ? JSON.parse(raw) : null;
+  if (!raw) return null;
+
+  const tokens = normalizarTokens(JSON.parse(raw));
+  if (tokens?.accessToken) {
+    definirTokens(tokens);
+  }
+  return tokens;
+}
+
+export async function getStoredTokens() {
+  return obterTokensAtivos();
 }
 
 export async function saveStoredTokens(tokens) {
-  await AsyncStorage.setItem(STORAGE_KEYS.tokens, JSON.stringify(tokens));
+  const normalizados = normalizarTokens(tokens);
+  await AsyncStorage.setItem(STORAGE_KEYS.tokens, JSON.stringify(normalizados));
+  definirTokens(normalizados);
+  return normalizados;
 }
 
 export async function clearStoredTokens() {
+  limparTokensMemoria();
   await AsyncStorage.removeItem(STORAGE_KEYS.tokens);
+  await AsyncStorage.removeItem(STORAGE_KEYS.email);
+}
+
+export async function getStoredEmail() {
+  return AsyncStorage.getItem(STORAGE_KEYS.email);
+}
+
+export async function saveStoredEmail(email) {
+  await AsyncStorage.setItem(STORAGE_KEYS.email, email.trim());
 }
 
 async function refreshAccessToken(refreshToken) {
+  const tokenLimpo = String(refreshToken).trim();
   const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({ refreshToken: tokenLimpo }),
   });
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'Sessão expirada');
+    const message = await parseError(response);
+    throw new ApiError(response.status, message || 'Sessão expirada');
   }
 
-  const tokens = await response.json();
+  const tokens = normalizarTokens(await response.json());
   await saveStoredTokens(tokens);
   return tokens;
 }
 
 export async function apiRequest(path, options = {}, retry = true) {
-  const tokens = await getStoredTokens();
+  const tokens = await obterTokensAtivos();
   const headers = {
     'Content-Type': 'application/json',
+    Accept: 'application/json',
     ...(options.headers ?? {}),
   };
 
@@ -61,6 +114,7 @@ export async function apiRequest(path, options = {}, retry = true) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
     headers,
+    body: options.body,
   });
 
   if (response.status === 401 && retry && tokens?.refreshToken) {
@@ -87,8 +141,14 @@ export async function apiRequest(path, options = {}, retry = true) {
 export async function loginRequest(email, senha) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, senha }),
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify({
+      email: email.trim(),
+      senha: senha,
+    }),
   });
 
   if (!response.ok) {
@@ -96,8 +156,14 @@ export async function loginRequest(email, senha) {
     throw new ApiError(response.status, message);
   }
 
-  const tokens = await response.json();
+  const tokens = normalizarTokens(await response.json());
+
+  if (!tokens?.accessToken || !tokens?.refreshToken) {
+    throw new ApiError(500, 'Resposta de login inválida da API.');
+  }
+
   await saveStoredTokens(tokens);
+  await saveStoredEmail(email.trim());
   return tokens;
 }
 

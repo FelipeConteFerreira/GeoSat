@@ -7,29 +7,79 @@ import {
   StyleSheet,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { usePlantacoes } from '../context/PlantacaoContext';
+import { ApiError } from '../services/apiClient';
+import { FONTS } from '../config/theme';
 
 export default function PlantacoesScreen({ navigation }) {
-  const { plantacoes, carregando, recarregarPlantacoes } = usePlantacoes();
+  const { plantacoes, carregando, recarregarPlantacoes, removerPlantacao } = usePlantacoes();
   const [refreshing, setRefreshing] = React.useState(false);
+  const [excluindoId, setExcluindoId] = React.useState(null);
+
+  function confirmarExclusao(item) {
+    Alert.alert(
+      'Apagar plantação',
+      `Deseja apagar "${item.nome}"? O talhão será removido da API.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Apagar', style: 'destructive', onPress: () => handleExcluir(item) },
+      ]
+    );
+  }
+
+  async function handleExcluir(item) {
+    setExcluindoId(item.id);
+    try {
+      await removerPlantacao(item.idTalhao);
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : 'Erro ao apagar plantação.';
+      Alert.alert('Erro', msg);
+    } finally {
+      setExcluindoId(null);
+    }
+  }
 
   function renderItem({ item }) {
     const { statusTemperatura } = item;
+    const excluindo = excluindoId === item.id;
 
     return (
-      <TouchableOpacity
-        style={styles.card}
-        onPress={() => navigation.navigate('Detalhes', { plantacao: item })}
-      >
-        <Text style={styles.cardTitle}>{item.nome}</Text>
-        <Text style={styles.cardInfo}>💧 Umidade: {item.umidade}%</Text>
-        <Text style={styles.cardInfo}>🌡️ Temperatura: {item.temperatura}°C</Text>
-        <Text style={styles.cardInfo}>🌱 Saúde: {item.saude}</Text>
-        <Text style={[styles.cardStatus, { color: statusTemperatura.color }]}>
-          {statusTemperatura.message}
-        </Text>
-      </TouchableOpacity>
+      <View style={styles.card}>
+        <TouchableOpacity
+          style={styles.cardConteudo}
+          onPress={() => navigation.navigate('Detalhes', { plantacao: item })}
+          accessibilityRole="button"
+          accessibilityLabel={`Ver detalhes da plantação ${item.nome}`}
+        >
+          <Text style={styles.cardTitle}>{item.nome}</Text>
+          <Text style={styles.cardInfo}>💧 Umidade: {item.umidade}%</Text>
+          <Text style={styles.cardInfo}>🌡️ Temperatura: {item.temperatura}°C</Text>
+          <Text style={styles.cardInfo}>🌱 Cultura: {item.saude}</Text>
+          <Text style={[styles.cardStatus, { color: statusTemperatura.color }]}>
+            {statusTemperatura.message}
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.botaoExcluir}
+          onPress={() => confirmarExclusao(item)}
+          disabled={excluindo}
+          accessibilityRole="button"
+          accessibilityLabel={`Apagar plantação ${item.nome}`}
+        >
+          {excluindo ? (
+            <ActivityIndicator size="small" color="#B71C1C" />
+          ) : (
+            <>
+              <Ionicons name="trash-outline" size={18} color="#B71C1C" />
+              <Text style={styles.botaoExcluirTexto}>Apagar</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -65,6 +115,8 @@ export default function PlantacoesScreen({ navigation }) {
       <TouchableOpacity
         style={styles.addButton}
         onPress={() => navigation.navigate('AdicionarPlantacao')}
+        accessibilityRole="button"
+        accessibilityLabel="Adicionar nova plantação"
       >
         <Text style={styles.addButtonText}>+ Adicionar Plantação</Text>
       </TouchableOpacity>
@@ -80,13 +132,25 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: '#fff',
     borderRadius: 10,
-    padding: 16,
     marginBottom: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#2E7D32',
     elevation: 2,
+    overflow: 'hidden',
   },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', color: '#2E7D32', marginBottom: 8 },
+  cardConteudo: { padding: 16 },
+  cardTitle: { fontSize: 18, fontFamily: FONTS.bold, color: '#2E7D32', marginBottom: 8 },
+  botaoExcluir: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#FFCDD2',
+    backgroundColor: '#FFF5F5',
+  },
+  botaoExcluirTexto: { color: '#B71C1C', fontSize: 14, fontFamily: FONTS.semiBold },
   cardInfo: { fontSize: 14, color: '#333', marginBottom: 4 },
   cardStatus: { fontSize: 13, fontWeight: '600', marginTop: 8 },
   addButton: {
@@ -96,5 +160,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-  addButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  addButtonText: { color: '#fff', fontSize: 16, fontFamily: FONTS.bold },
 });

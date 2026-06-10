@@ -13,14 +13,30 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import { ApiError } from '../services/apiClient';
+import { FONTS } from '../config/theme';
+
+function nomeDoEmail(email) {
+  const parte = String(email ?? '').split('@')[0] ?? '';
+  return parte.replace(/[._-]/g, ' ').trim();
+}
 
 export default function LoginScreen() {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
+  const [nome, setNome] = useState('');
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
 
+  function handleEmailChange(valor) {
+    setEmail(valor);
+    if (!nome.trim()) {
+      const sugerido = nomeDoEmail(valor);
+      if (sugerido) setNome(sugerido);
+    }
+  }
+
   async function handleLogin() {
+    if (!nome.trim()) return Alert.alert('Atenção', 'Informe seu nome.');
     if (!email.trim() || !senha.trim()) {
       Alert.alert('Atenção', 'Informe e-mail e senha.');
       return;
@@ -28,7 +44,7 @@ export default function LoginScreen() {
 
     setCarregando(true);
     try {
-      await login(email.trim(), senha);
+      await login(email.trim(), senha, nome.trim());
     } catch (error) {
       const mensagem =
         error instanceof ApiError
@@ -52,12 +68,21 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
+        <Text style={styles.label}>Nome</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Ex: Felipe Conte"
+          value={nome}
+          onChangeText={setNome}
+          maxLength={100}
+        />
+
         <Text style={styles.label}>E-mail</Text>
         <TextInput
           style={styles.input}
           placeholder="seu@email.com"
           value={email}
-          onChangeText={setEmail}
+          onChangeText={handleEmailChange}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -76,6 +101,8 @@ export default function LoginScreen() {
           style={[styles.botao, carregando && styles.botaoDisabled]}
           onPress={handleLogin}
           disabled={carregando}
+          accessibilityRole="button"
+          accessibilityLabel="Entrar na conta"
         >
           {carregando ? (
             <ActivityIndicator color="#fff" />
@@ -85,8 +112,8 @@ export default function LoginScreen() {
         </TouchableOpacity>
 
         <Text style={styles.dica}>
-          Conectado à API: geosat-java.onrender.com{'\n'}
-          A primeira conexão pode levar até 1 minuto (cold start).
+          O perfil usa nome e e-mail do login. Altere para testar outra conta.{'\n'}
+          API: geosat-java.onrender.com (primeira conexão pode levar até 1 min).
         </Text>
       </View>
     </KeyboardAvoidingView>
@@ -103,10 +130,10 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-  titulo: { fontSize: 32, fontWeight: 'bold', color: '#fff', marginTop: 12 },
-  subtitulo: { fontSize: 14, color: 'rgba(255,255,255,0.85)', marginTop: 6 },
+  titulo: { fontSize: 32, fontFamily: FONTS.bold, color: '#fff', marginTop: 12 },
+  subtitulo: { fontSize: 14, fontFamily: FONTS.regular, color: 'rgba(255,255,255,0.85)', marginTop: 6 },
   form: { padding: 24, flex: 1 },
-  label: { fontSize: 14, fontWeight: '600', color: '#1B5E20', marginBottom: 6, marginTop: 12 },
+  label: { fontSize: 14, fontFamily: FONTS.semiBold, color: '#1B5E20', marginBottom: 6, marginTop: 12 },
   input: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -123,7 +150,7 @@ const styles = StyleSheet.create({
     marginTop: 28,
   },
   botaoDisabled: { opacity: 0.7 },
-  botaoTexto: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
+  botaoTexto: { color: '#fff', fontSize: 16, fontFamily: FONTS.bold },
   dica: {
     fontSize: 12,
     color: '#666',
@@ -132,3 +159,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
+

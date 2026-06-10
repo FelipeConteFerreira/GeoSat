@@ -1,5 +1,13 @@
-import { apiRequest } from './apiClient';
+import { apiRequest, ApiError } from './apiClient';
 import { unwrapEntity, unwrapList } from '../utils/hateoas';
+
+function exigirCampo(resposta, campo) {
+  const entity = unwrapEntity(resposta);
+  if (entity?.[campo] == null) {
+    throw new ApiError(500, `Resposta da API inválida: campo "${campo}" ausente.`);
+  }
+  return entity;
+}
 
 export const geosatApi = {
   async buscarProdutorMe() {
@@ -7,12 +15,17 @@ export const geosatApi = {
     return unwrapEntity(data);
   },
 
+  async listarProdutores() {
+    const data = await apiRequest('/produtores');
+    return unwrapList(data).map(unwrapEntity);
+  },
+
   async criarProdutor(body) {
     const data = await apiRequest('/produtores', {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    return unwrapEntity(data);
+    return exigirCampo(data, 'idProdutor');
   },
 
   async atualizarProdutor(id, body) {
@@ -33,7 +46,7 @@ export const geosatApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    return unwrapEntity(data);
+    return exigirCampo(data, 'idPropriedade');
   },
 
   async atualizarPropriedade(id, body) {
@@ -54,7 +67,19 @@ export const geosatApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
+    return exigirCampo(data, 'idTalhao');
+  },
+
+  async atualizarTalhao(idTalhao, body) {
+    const data = await apiRequest(`/talhoes/${idTalhao}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
     return unwrapEntity(data);
+  },
+
+  async excluirTalhao(idTalhao) {
+    await apiRequest(`/talhoes/${idTalhao}`, { method: 'DELETE' });
   },
 
   async listarSensoresPorTalhao(idTalhao) {
@@ -67,7 +92,7 @@ export const geosatApi = {
       method: 'POST',
       body: JSON.stringify(body),
     });
-    return unwrapEntity(data);
+    return exigirCampo(data, 'idSensor');
   },
 
   async ultimaLeitura(idSensor) {
@@ -88,18 +113,4 @@ export const geosatApi = {
     return unwrapEntity(data);
   },
 
-  async listarAlertasPendentes() {
-    const data = await apiRequest('/alertas/produtor/me/pendentes');
-    return unwrapList(data).map(unwrapEntity);
-  },
-
-  async listarMeusAlertas() {
-    const data = await apiRequest('/alertas/produtor/me');
-    return unwrapList(data).map(unwrapEntity);
-  },
-
-  async resolverAlerta(idAlerta) {
-    const data = await apiRequest(`/alertas/${idAlerta}/resolver`, { method: 'PATCH' });
-    return unwrapEntity(data);
-  },
 };

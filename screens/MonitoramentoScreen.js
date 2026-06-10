@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { usePlantacoes } from '../context/PlantacaoContext';
+import { FONTS } from '../config/theme';
 
 export default function MonitoramentoScreen({ navigation }) {
   const { plantacoes } = usePlantacoes();
@@ -16,7 +17,7 @@ export default function MonitoramentoScreen({ navigation }) {
           <Text style={styles.plantacaoNome}>{ultima.nome}</Text>
           <Text style={styles.info}>Umidade do solo: {ultima.umidade}%</Text>
           <Text style={styles.info}>Temperatura: {ultima.temperatura}°C</Text>
-          <Text style={styles.info}>Saúde da plantação: {ultima.saude}</Text>
+          <Text style={styles.info}>Cultura: {ultima.saude}</Text>
           <Text style={[styles.status, { color: ultima.statusTemperatura.color }]}>
             {ultima.statusTemperatura.message}
           </Text>
@@ -24,6 +25,8 @@ export default function MonitoramentoScreen({ navigation }) {
           <TouchableOpacity
             style={styles.button}
             onPress={() => navigation.navigate('Detalhes', { plantacao: ultima })}
+            accessibilityRole="button"
+            accessibilityLabel="Ver detalhes da plantação"
           >
             <Text style={styles.buttonText}>Ver Detalhes</Text>
           </TouchableOpacity>
@@ -34,6 +37,8 @@ export default function MonitoramentoScreen({ navigation }) {
           <TouchableOpacity
             style={styles.button}
             onPress={() => navigation.navigate('AdicionarPlantacao')}
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar plantação"
           >
             <Text style={styles.buttonText}>Adicionar Plantação</Text>
           </TouchableOpacity>
@@ -45,10 +50,10 @@ export default function MonitoramentoScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 20, backgroundColor: '#E8F5E9' },
-  title: { fontSize: 22, marginBottom: 15, color: '#2E7D32', fontWeight: 'bold' },
-  plantacaoNome: { fontSize: 18, fontWeight: '600', color: '#1B5E20', marginBottom: 12 },
+  title: { fontSize: 22, marginBottom: 15, color: '#2E7D32', fontFamily: FONTS.bold },
+  plantacaoNome: { fontSize: 18, fontFamily: FONTS.semiBold, color: '#1B5E20', marginBottom: 12 },
   info: { fontSize: 15, color: '#333', marginBottom: 6 },
-  status: { fontSize: 14, fontWeight: '600', marginTop: 10, marginBottom: 20 },
+  status: { fontSize: 14, fontFamily: FONTS.semiBold, marginTop: 10, marginBottom: 20 },
   empty: { fontSize: 14, color: '#555', marginBottom: 20 },
   button: {
     backgroundColor: '#2E7D32',
@@ -56,5 +61,5 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
   },
-  buttonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  buttonText: { color: '#fff', fontSize: 16, fontFamily: FONTS.semiBold },
 });

@@ -3,17 +3,22 @@ import { geosatApi } from '../services/geosatApi';
 import { useUsuario } from './UsuarioContext';
 import { evaluateTemperatura } from '../utils/evaluateTemperatura';
 import { ApiError } from '../services/apiClient';
-
+import {
+  montarBodyTalhao,
+  montarBodySensor,
+  montarBodyLeitura,
+  limitarTexto,
+} from '../utils/apiValidators';
 const PlantacaoContext = createContext(null);
 
-function mapTalhaoParaPlantacao(talhao, leitura) {
+function mapTalhaoParaPlantacao(talhao, leitura, sensor = null) {
   const temperatura = leitura?.nrTempAr ?? 0;
   const umidade = leitura?.nrUmidadeSolo ?? 0;
 
   return {
     id: String(talhao.idTalhao),
     idTalhao: talhao.idTalhao,
-    idSensor: leitura?.idSensor ?? null,
+    idSensor: leitura?.idSensor ?? sensor?.idSensor ?? null,
     nome: talhao.nmNome,
     umidade: String(umidade),
     temperatura: parseFloat(temperatura),
@@ -24,14 +29,16 @@ function mapTalhaoParaPlantacao(talhao, leitura) {
 }
 
 export function PlantacaoProvider({ children }) {
-  const { usuario } = useUsuario();
+  const { usuario, garantirPropriedadeNaApi } = useUsuario();
   const [plantacoes, setPlantacoes] = useState([]);
   const [carregando, setCarregando] = useState(false);
   const [erroApi, setErroApi] = useState(null);
 
-  const carregarPlantacoes = useCallback(async () => {
-    if (!usuario?.idPropriedade) {
+  const carregarPlantacoes = useCallback(async (idPropriedadeInformado) => {
+    const idPropriedade = idPropriedadeInformado ?? usuario?.idPropriedade;
+    if (!idPropriedade) {
       setPlantacoes([]);
+      setErroApi(null);
       return;
     }
 
@@ -39,8 +46,8 @@ export function PlantacaoProvider({ children }) {
     setErroApi(null);
 
     try {
-      const talhoes = await geosatApi.listarTalhoesPorPropriedade(usuario.idPropriedade);
-      const plantacoesComLeitura = await Promise.all(
+      const talhoes = await geosatApi.listarTalhoesPorPropriedade(idPropriedade);
+      const lista = await Promise.all(
         talhoes.map(async (talhao) => {
           const sensores = await geosatApi.listarSensoresPorTalhao(talhao.idTalhao);
           const sensor = sensores[0];
@@ -50,54 +57,117 @@ export function PlantacaoProvider({ children }) {
             leitura = await geosatApi.ultimaLeitura(sensor.idSensor);
           }
 
-          return mapTalhaoParaPlantacao(talhao, leitura);
+          return mapTalhaoParaPlantacao(talhao, leitura, sensor);
         })
       );
 
-      setPlantacoes(plantacoesComLeitura);
+      setPlantacoes(lista);
     } catch (error) {
-      setErroApi(error.message || 'Erro ao carregar plantações');
+      setPlantacoes([]);
+      setErroApi(error instanceof ApiError ? error.message : 'Erro ao carregar plantações da API');
+      throw error;
     } finally {
       setCarregando(false);
     }
   }, [usuario?.idPropriedade]);
 
   useEffect(() => {
-    carregarPlantacoes();
+    carregarPlantacoes().catch(() => {});
   }, [carregarPlantacoes]);
 
-  async function adicionarPlantacao({ nome, umidade, temperatura, saude }) {
-    if (!usuario?.idPropriedade) {
-      throw new ApiError(400, 'Cadastre seu perfil com propriedade antes de adicionar plantações.');
+  async function adicionarPlantacao(dados) {
+    let idPropriedade = usuario?.idPropriedade;
+
+    if (!idPropriedade) {
+      const perfil = await garantirPropriedadeNaApi();
+      idPropriedade = perfil?.idPropriedade;
     }
 
-    const temp = parseFloat(String(temperatura).replace(',', '.'));
-    const umid = parseFloat(String(umidade).replace(',', '.'));
+    if (!idPropriedade) {
+      throw new ApiError(400, 'Não foi possível vincular uma propriedade na API para este usuário.');
+    }
 
-    const talhao = await geosatApi.criarTalhao({
-      idPropriedade: usuario.idPropriedade,
-      nmNome: nome.trim(),
-      dsCultura: saude.trim(),
-      nrAreaHa: 1.0,
-    });
+    const talhao = await geosatApi.criarTalhao(
+      montarBodyTalhao({
+        idPropriedade,
+        nome: dados.nome,
+        cultura: dados.saude,
+      })
+    );
 
-    const sensor = await geosatApi.criarSensor({
-      idTalhao: talhao.idTalhao,
-      cdIdentificadorHw: `MOBILE-${Date.now()}`,
-      dsLocalizacao: nome.trim(),
-    });
+    const sensor = await geosatApi.criarSensor(
+      montarBodySensor({
+        idTalhao: talhao.idTalhao,
+        identificador: `MOB-${Date.now()}`,
+        localizacao: limitarTexto(dados.nome, 200),
+      })
+    );
 
-    const leitura = await geosatApi.criarLeitura({
-      idSensor: sensor.idSensor,
-      dtLeitura: new Date().toISOString().slice(0, 19) + 'Z',
-      nrTempAr: temp,
-      nrUmidadeSolo: umid,
-      nrLuminosidade: 500,
-    });
+    const leitura = await geosatApi.criarLeitura(
+      montarBodyLeitura({
+        idSensor: sensor.idSensor,
+        temperatura: dados.temperatura,
+        umidade: dados.umidade,
+      })
+    );
 
-    const novaPlantacao = mapTalhaoParaPlantacao(talhao, leitura);
-    setPlantacoes((atual) => [...atual, novaPlantacao]);
-    return novaPlantacao;
+    await carregarPlantacoes(idPropriedade);
+    return mapTalhaoParaPlantacao(talhao, leitura);
+  }
+
+  async function removerPlantacao(idTalhao) {
+    await geosatApi.excluirTalhao(idTalhao);
+    await carregarPlantacoes();
+  }
+
+  async function atualizarPlantacao(plantacao, dados) {
+    let idPropriedade = usuario?.idPropriedade;
+
+    if (!idPropriedade) {
+      const perfil = await garantirPropriedadeNaApi();
+      idPropriedade = perfil?.idPropriedade;
+    }
+
+    if (!idPropriedade) {
+      throw new ApiError(400, 'Não foi possível vincular uma propriedade na API para este usuário.');
+    }
+
+    const talhao = await geosatApi.atualizarTalhao(
+      plantacao.idTalhao,
+      montarBodyTalhao({
+        idPropriedade,
+        nome: dados.nome,
+        cultura: dados.saude,
+      })
+    );
+
+    let idSensor = plantacao.idSensor;
+    if (!idSensor) {
+      const sensores = await geosatApi.listarSensoresPorTalhao(plantacao.idTalhao);
+      idSensor = sensores[0]?.idSensor ?? null;
+    }
+
+    if (!idSensor) {
+      const sensor = await geosatApi.criarSensor(
+        montarBodySensor({
+          idTalhao: plantacao.idTalhao,
+          identificador: `MOB-${Date.now()}`,
+          localizacao: limitarTexto(dados.nome, 200),
+        })
+      );
+      idSensor = sensor.idSensor;
+    }
+
+    const leitura = await geosatApi.criarLeitura(
+      montarBodyLeitura({
+        idSensor,
+        temperatura: dados.temperatura,
+        umidade: dados.umidade,
+      })
+    );
+
+    await carregarPlantacoes(idPropriedade);
+    return mapTalhaoParaPlantacao(talhao, leitura);
   }
 
   return (
@@ -107,7 +177,10 @@ export function PlantacaoProvider({ children }) {
         carregando,
         erroApi,
         adicionarPlantacao,
+        atualizarPlantacao,
+        removerPlantacao,
         recarregarPlantacoes: carregarPlantacoes,
+        temPerfil: !!usuario?.idPropriedade,
       }}
     >
       {children}
